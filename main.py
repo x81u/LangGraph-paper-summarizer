@@ -40,23 +40,34 @@ def search_arxiv(state: PaperState) -> PaperState:
         })
     return {"papers": papers, "messages": state["messages"]}
 
-# Node: Filter & summarize abstracts using small model
+# Node: Filter papers with user selection
 def filter_papers(state: PaperState) -> PaperState:
     filtered = []
-    for paper in state["papers"]:
-        prompt = f"""
-Determine if the following paper is relevant to the research topic. 
-If relevant, provide a one-sentence summary.
-
-Title: {paper['title']}
-Abstract: {paper['abstract']}
-
-Response format:
-Relevance: Yes/No
-Summary: <One-sentence summary>
-"""
+    print("\n=== Search Results ===\n")
+    for idx, paper in enumerate(state["papers"], 1):
+        # Translate abstract to Traditional Chinese
+        prompt = f"Translate the following academic abstract into Traditional Chinese:\n\n{paper['abstract']}"
         res = small_model.invoke([HumanMessage(content=prompt)])
-        if "Yes" in res.content:
+        zh_abstract = res.content.strip()
+
+        # Show to user
+        print(f"[{idx}] {paper['title']}")
+        print(f"Abstract:\n{zh_abstract}\n{'-'*60}")
+
+    # Ask user to select papers
+    selection = input("Enter the paper numbers you want to keep (comma-separated), or press Enter to skip: ").strip()
+    if not selection:
+        print("No papers selected. Exiting...")
+        exit(0)
+
+    try:
+        selected_indices = {int(i.strip()) for i in selection.split(",")}
+    except ValueError:
+        print("Invalid input. Exiting...")
+        exit(1)
+
+    for idx, paper in enumerate(state["papers"], 1):
+        if idx in selected_indices:
             filtered.append(paper)
     return {"filtered_papers": filtered, "messages": state["messages"]}
 
