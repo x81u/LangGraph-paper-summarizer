@@ -28,7 +28,7 @@ def search_arxiv(state: PaperState) -> PaperState:
     client = arxiv.Client()
     search = arxiv.Search(
         query=query,
-        max_results=5,
+        max_results=20,
         sort_by=arxiv.SortCriterion.Relevance
     )
     papers = []
@@ -40,11 +40,31 @@ def search_arxiv(state: PaperState) -> PaperState:
         })
     return {"papers": papers, "messages": state["messages"]}
 
+# Node: Filter by title
+def filter_by_title(state: PaperState) -> PaperState:
+    filtered_by_title = []
+    print("\n=== Top 20 Search Results (Titles) ===\n")
+    for idx, paper in enumerate(state["papers"], 1):
+        print(f"[{idx}] {paper['title']}")
+    selection = input("\nEnter the paper numbers you want to keep (comma-separated), or press Enter to skip: ").strip()
+    if not selection:
+        print("No papers selected. Exiting...")
+        exit(0)
+    try:
+        selected_indices = {int(i.strip()) for i in selection.split(",")}
+    except ValueError:
+        print("Invalid input. Exiting...")
+        exit(1)
+    for idx, paper in enumerate(state["papers"], 1):
+        if idx in selected_indices:
+            filtered_by_title.append(paper)
+    return {"filtered_papers": filtered_by_title, "messages": state["messages"]}
+
 # Node: Filter papers with user selection
 def filter_papers(state: PaperState) -> PaperState:
     filtered = []
     print("\n=== Search Results ===\n")
-    for idx, paper in enumerate(state["papers"], 1):
+    for idx, paper in enumerate(state["filtered_papers"], 1):
         # Translate abstract to Traditional Chinese
         prompt = f"Translate the following academic abstract into Traditional Chinese:\n\n{paper['abstract']}"
         res = small_model.invoke([HumanMessage(content=prompt)])
@@ -66,7 +86,7 @@ def filter_papers(state: PaperState) -> PaperState:
         print("Invalid input. Exiting...")
         exit(1)
 
-    for idx, paper in enumerate(state["papers"], 1):
+    for idx, paper in enumerate(state["filtered_papers"], 1):
         if idx in selected_indices:
             filtered.append(paper)
     return {"filtered_papers": filtered, "messages": state["messages"]}
@@ -121,13 +141,15 @@ def generate_markdown(state: PaperState) -> PaperState:
 # Build LangGraph
 graph = StateGraph(PaperState)
 graph.add_node("search", search_arxiv)
+graph.add_node("filter_title", filter_by_title)
 graph.add_node("filter", filter_papers)
 graph.add_node("parse", parse_pdfs)
 graph.add_node("summarize", summarize_sections)
 graph.add_node("output", generate_markdown)
-# search -> filter -> parse -> summarize -> output
+# search -> filter_title -> filter -> parse -> summarize -> output
 graph.set_entry_point("search")
-graph.add_edge("search", "filter")
+graph.add_edge("search", "filter_title")
+graph.add_edge("filter_title", 'filter')
 graph.add_edge("filter", "parse")
 graph.add_edge("parse", "summarize")
 graph.add_edge("summarize", "output")
