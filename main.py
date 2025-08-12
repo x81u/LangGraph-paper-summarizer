@@ -24,7 +24,10 @@ class PaperState(MessagesState):
 
 # Node: Search Arxiv
 def search_arxiv(state: PaperState) -> PaperState:
-    query = state["messages"][-1].content
+    query = input("Enter your research keyword: ")
+    if not query:
+        print("No keyword entered. Ending...")
+        exit(0)
     client = arxiv.Client()
     search = arxiv.Search(
         query=query,
@@ -46,15 +49,17 @@ def filter_by_title(state: PaperState) -> PaperState:
     print("\n=== Top 20 Search Results (Titles) ===\n")
     for idx, paper in enumerate(state["papers"], 1):
         print(f"[{idx}] {paper['title']}")
-    selection = input("\nEnter the paper numbers you want to keep (comma-separated), or press Enter to skip: ").strip()
+
+    selection = input("\nEnter the paper numbers you want to keep (comma-separated), or return to search without input: ").strip()
     if not selection:
-        print("No papers selected. Exiting...")
-        exit(0)
+        print("No papers selected. Return to search.")
+        return {"filtered_papers": [], "messages": state["messages"]}
     try:
         selected_indices = {int(i.strip()) for i in selection.split(",")}
     except ValueError:
-        print("Invalid input. Exiting...")
-        exit(1)
+        print("Invalid input. Return to search.")
+        return {"filtered_papers": [], "messages": state["messages"]}
+
     for idx, paper in enumerate(state["papers"], 1):
         if idx in selected_indices:
             filtered_by_title.append(paper)
@@ -69,22 +74,18 @@ def filter_papers(state: PaperState) -> PaperState:
         prompt = f"Translate the following academic abstract into Traditional Chinese:\n\n{paper['abstract']}"
         res = small_model.invoke([HumanMessage(content=prompt)])
         zh_abstract = res.content.strip()
-
-        # Show to user
         print(f"[{idx}] {paper['title']}")
         print(f"Abstract:\n{zh_abstract}\n{'-'*60}")
 
-    # Ask user to select papers
-    selection = input("Enter the paper numbers you want to keep (comma-separated), or press Enter to skip: ").strip()
+    selection = input("Enter the paper numbers you want to keep (comma-separated), or return to select title without input: ").strip()
     if not selection:
-        print("No papers selected. Exiting...")
-        exit(0)
-
+        print("No papers selected. Return to search.")
+        return {"filtered_papers": [], "messages": state["messages"]}
     try:
         selected_indices = {int(i.strip()) for i in selection.split(",")}
     except ValueError:
-        print("Invalid input. Exiting...")
-        exit(1)
+        print("Invalid input. Return to search.")
+        return {"filtered_papers": [], "messages": state["messages"]}
 
     for idx, paper in enumerate(state["filtered_papers"], 1):
         if idx in selected_indices:
@@ -104,7 +105,7 @@ def parse_pdfs(state: PaperState) -> PaperState:
         paper["full_text"] = text
     return {"filtered_papers": state["filtered_papers"], "messages": state["messages"]}
 
-## Node: Summarize each paper into sections using large model
+# Node: Summarize each paper into sections using large model
 def summarize_sections(state: PaperState) -> PaperState:
     summaries = []
     for paper in state["filtered_papers"]:
@@ -138,6 +139,9 @@ def generate_markdown(state: PaperState) -> PaperState:
         f.write(md_content)
     return {"markdown": md_content, "messages": state["messages"]}
 
+def check_paper_selection(state):
+    return "no_selection" if not state.get("filtered_papers") else "selected"
+
 # Build LangGraph
 graph = StateGraph(PaperState)
 graph.add_node("search", search_arxiv)
@@ -149,8 +153,22 @@ graph.add_node("output", generate_markdown)
 # search -> filter_title -> filter -> parse -> summarize -> output
 graph.set_entry_point("search")
 graph.add_edge("search", "filter_title")
-graph.add_edge("filter_title", 'filter')
-graph.add_edge("filter", "parse")
+graph.add_conditional_edges(
+    "filter_title",
+    check_paper_selection,
+    {
+        "no_selection": "search",
+        "selected": "filter"
+    }
+)
+graph.add_conditional_edges(
+    "filter",
+    check_paper_selection,
+    {
+        "no_selection": "filter_title",
+        "selected": "parse"
+    }
+)
 graph.add_edge("parse", "summarize")
 graph.add_edge("summarize", "output")
 
@@ -158,6 +176,5 @@ app = graph.compile()
 
 # Run
 if __name__ == "__main__":
-    query = input("Enter your research keyword: ")
-    result = app.invoke({"messages": [HumanMessage(content=query)]})
+    result = app.invoke({})
     print("Done! Generated report.")
