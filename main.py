@@ -39,7 +39,8 @@ def search_arxiv(state: PaperState) -> PaperState:
         papers.append({
             "title": result.title,
             "abstract": result.summary,
-            "pdf_url": result.pdf_url
+            "pdf_url": result.pdf_url,
+            "published": result.published.strftime("%Y-%m-%d")
         })
     return {"papers": papers, "messages": state["messages"]}
 
@@ -48,7 +49,7 @@ def filter_by_title(state: PaperState) -> PaperState:
     filtered_by_title = []
     print("\n=== Top 20 Search Results (Titles) ===\n")
     for idx, paper in enumerate(state["papers"], 1):
-        print(f"[{idx}] {paper['title']}")
+        print(f"[{idx}] {paper['title']} ({paper['published']})")
 
     selection = input("\nEnter the paper numbers you want to keep (comma-separated), or return to search without input: ").strip()
     if not selection:
