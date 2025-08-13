@@ -81,12 +81,12 @@ def filter_papers(state: PaperState) -> PaperState:
 
     selection = input("Enter the paper numbers you want to keep (comma-separated), or return to select title without input: ").strip()
     if not selection:
-        print("No papers selected. Return to search.")
+        print("No papers selected. Return to title selection.")
         return {"filtered_papers": [], "messages": state["messages"]}
     try:
         selected_indices = {int(i.strip()) for i in selection.split(",")}
     except ValueError:
-        print("Invalid input. Return to search.")
+        print("Invalid input. Return to title selection.")
         return {"filtered_papers": [], "messages": state["messages"]}
 
     for idx, paper in enumerate(state["filtered_papers"], 1):
