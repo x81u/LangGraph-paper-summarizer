@@ -20,6 +20,12 @@ or requirements.txt
 ```
 uv pip install -r requirements.txt
 ```
+### 4. Get and set your API key
+Get a [Google API Key](https://aistudio.google.com/app/apikey) and create a `.env` file in the project root.
+```
+GOOGLE_API_KEY = your_google_api_key
+```
+Replace `your_google_api_key` with your actual Google API key.
 
 ## Usage
 Once installed, you can run the project with:
