@@ -1,6 +1,7 @@
 import os
 import arxiv
 import fitz
+import time
 from dotenv import load_dotenv
 from langgraph.graph import StateGraph
 from langgraph.graph.message import MessagesState
@@ -109,18 +110,33 @@ def parse_pdfs(state: PaperState) -> PaperState:
 # Node: Summarize each paper into sections using large model
 def summarize_sections(state: PaperState) -> PaperState:
     summaries = []
-    for paper in state["filtered_papers"]:
+    for idx, paper in enumerate(state["filtered_papers"], 1):
+        print(f"Processing [{idx}] {paper['title']}")
         prompt = f"""
 Please summarize the following research paper into sections.
 Each section should have a clear Markdown heading and a concise explanation.
 
 Output language: Traditional Chinese.
 
+Only return plain text with Markdown formatting.
+
 Full text:
 {paper['full_text']}
 """
-        res = large_model.invoke([HumanMessage(content=prompt)])
-        summaries.append({"title": paper["title"], "summary": res.content})
+        retry_count = 0
+        while retry_count < 4:
+            res = large_model.invoke([HumanMessage(content=prompt)])
+            res_content = res.content.strip() if res.content else ""
+            if res_content:
+                break
+            else:
+                retry_count += 1
+                if retry_count < 4:
+                    print(f"AI reply nothing. Retry...")
+                    time.sleep(5)
+        if not res_content:
+            res_content = "Something wrong, try again later."
+        summaries.append({"title": paper["title"], "summary": res_content})
     return {"summaries": summaries, "messages": state["messages"]}
 
 # Node: Generate Markdown report
