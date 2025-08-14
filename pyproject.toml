@@ -1,5 +1,5 @@
 [project]
-name = "lg"
+name = "LangGraph-paper-summarizer"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
@@ -9,6 +9,7 @@ dependencies = [
     "langchain>=0.3.27",
     "langchain-google-genai>=2.1.9",
     "langgraph>=0.6.4",
+    "langgraph-checkpoint-sqlite>=2.0.11",
     "pymupdf>=1.26.3",
     "python-dotenv>=1.1.1",
 ]

@@ -1,5 +1,9 @@
 # LangGraph paper summarizer
 A Python tool that summarizes academic papers into well-structured sections in Traditional Chinese for easier reading and reference.
+
+## Architecture Refactoring with AI Assistance
+The current version of this project is the result of a significant architectural refactoring, conducted in collaboration with an AI programming partner. The original linear script was transformed into a more robust, modular, and interactive dual-agent system.
+
 ## Installation (with uv)
 ### 1. Clone the repository
 ```bash
