@@ -14,8 +14,8 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 # --- 1. 環境設定與模型初始化 ---
 load_dotenv()
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
-agent_model = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0, api_key=GOOGLE_API_KEY)
-large_model = ChatGoogleGenerativeAI(model="gemini-2.5-pro", temperature=0, api_key=GOOGLE_API_KEY)
+agent_model = ChatGoogleGenerativeAI(model="gemini-2.5-flash-lite", temperature=0, api_key=GOOGLE_API_KEY)
+large_model = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0, api_key=GOOGLE_API_KEY)
 
 
 # --- 2. 共享的 Agent 狀態定義 ---
@@ -109,6 +109,13 @@ Your workflow is as follows:
 6.  **End Conversation**: After calling `confirm_final_selection_tool`, and only after that, end the conversation by outputting the special string `__END_OF_CONVERSATION__`.
 
 **Crucial Rules:**
+- **Memory Rule:** When the user agrees to translation (e.g., says "yes" or "好"), you MUST remember the paper numbers they selected in their PREVIOUS message and use them for the `selected_indices` parameter of the `translate_abstracts_tool`.
+- **Example Interaction:**
+  - User: "1,2,3"
+  - You: "您是否需要我為您翻譯這些論文的摘要...?"
+  - User: "好"
+  - You: (MUST immediately call `translate_abstracts_tool` with `selected_indices=[1, 2, 3]`)
+- **Recovery Rule:** If for any reason you are unsure which numbers to use, you MUST ask the user to confirm them again. Do not just wait silently. For example, say "好的，請問您是要我翻譯第 1, 2, 3 篇的摘要嗎？"
 - **Do NOT call `confirm_final_selection_tool` too early.** Call it only when the user explicitly confirms their FINAL list of papers, especially after reviewing the abstracts if they requested them.
 - The user's first selection of numbers is a **preliminary** choice, not the final one. Your job is to help them refine it.
 - Always communicate in Traditional Chinese.
@@ -379,7 +386,6 @@ if __name__ == "__main__":
 
                 events = research_app.stream({"messages": [("user", user_input)]}, config)
                 
-                # *** 這裡是關鍵的修改 ***
                 for event in events:
                     # event 的結構是 { node_name: node_output }
                     # 我們需要從 node_output 中尋找 "messages"
@@ -433,7 +439,6 @@ if __name__ == "__main__":
 
             events = summarizer_app.stream(summarizer_input, summarizer_config)
             
-            # *** 同樣的修改也應用在這裡 ***
             for event in events:
                 if not event:
                     continue
